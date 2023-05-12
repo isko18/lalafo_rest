@@ -1,20 +1,26 @@
-from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView
+from rest_framework.viewsets import GenericViewSet
+from rest_framework import mixins
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from apps.posts.models import Post
 from apps.posts.serializer import PostSerializer
+from apps.posts.permission import PostPermission
 
-class PostAPIView(ListAPIView):
+class PostAPIViewSet(GenericViewSet,
+                     mixins.ListModelMixin,
+                     mixins.CreateModelMixin,
+                     mixins.UpdateModelMixin,
+                     mixins.DestroyModelMixin):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
+    permission_classes = (IsAuthenticated, )
 
-class PostCreateAPIView(CreateAPIView):
-    queryset = Post.objects.all()
-    serializer_class = PostSerializer
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
 
-class PostUpdateAPIView(UpdateAPIView):
-    queryset = Post.objects.all()
-    serializer_class = PostSerializer
-
-class PostDestroyAPIView(DestroyAPIView):
-    queryset = Post.objects.all()
-    serializer_class = PostSerializer
+    def get_permissions(self):
+        if self.action in ('create',):
+            return(IsAuthenticated(), )
+        if self.action in ('update', 'partial_update', 'destroy',):
+            return (IsAuthenticated(), PostPermission())
+        return(AllowAny(),)
